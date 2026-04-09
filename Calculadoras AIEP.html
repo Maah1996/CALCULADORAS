@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadoras de horarios</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; display: flex; }
+    .app { display: flex; width: 100%; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar { width: 230px; min-width: 230px; background: #1e2a3a; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+    .sidebar-brand { padding: 22px 18px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.08); }
+    .sidebar-brand-title { font-size: 13px; font-weight: 600; color: #e2e8f0; letter-spacing: 0.03em; }
+    .sidebar-brand-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .sidebar-section { padding: 16px 14px 4px; font-size: 10px; font-weight: 600; color: #475569; letter-spacing: 0.1em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 2px 8px; border-radius: 7px; cursor: pointer; text-decoration: none; transition: background 0.15s; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); }
+    .nav-item.active { background: #185FA5; }
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.6; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-label { font-size: 12.5px; color: #94a3b8; font-weight: 400; }
+    .nav-item.active .nav-label { color: #fff; font-weight: 500; }
+    .nav-item.coming .nav-label { color: #3d4f63; }
+    .nav-item.coming .nav-icon { opacity: 0.2; }
+    .nav-badge { margin-left: auto; font-size: 10px; background: rgba(255,255,255,0.06); color: #475569; padding: 2px 7px; border-radius: 10px; }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .topbar { background: #fff; padding: 16px 28px; border-bottom: 0.5px solid #e2e8f0; }
+    .topbar-title { font-size: 15px; font-weight: 600; color: #1a202c; }
+    .topbar-sub { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+    .content { flex: 1; padding: 28px; max-width: 680px; }
+
+    /* ── Calc card ── */
+    .calc-card { background: #fff; border: 0.5px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+    .calc-main-title { text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 22px; }
+
+    /* ── Inputs hora ── */
+    .inputs-row { display: flex; align-items: flex-start; gap: 28px; justify-content: center; margin-bottom: 22px; }
+    .time-block { text-align: center; }
+    .time-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+    .time-inputs { display: flex; gap: 6px; align-items: center; }
+    .time-box { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .box-label { font-size: 10px; color: #b0bec5; font-weight: 500; }
+    .box-val { width: 56px; height: 40px; border: 1.5px solid #FAC775; border-radius: 6px; background: #FFFBF0; text-align: center; font-size: 18px; font-weight: 600; color: #633806; padding: 0; outline: none; font-family: inherit; transition: border-color 0.15s; }
+    .box-val:focus { border-color: #EF9F27; }
+    .colon { font-size: 22px; font-weight: 600; color: #cbd5e0; margin-top: 16px; }
+    .arrow-sep { font-size: 20px; color: #cbd5e0; margin-top: 24px; }
+
+    /* ── Celda base: todas 64×32 ── */
+    .c { width: 64px; height: 32px; border-radius: 5px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cy  { background: #FFFBF0; color: #633806; border: 1.5px solid #FAC775; }
+    .cb  { background: #EBF4FF; color: #0C447C; border: 1.5px solid #B5D4F4; }
+    .cg  { background: #EAF3DE; color: #27500A; border: 1.5px solid #C0DD97; }
+    .ca  { background: #FFFBF0; color: #854F0B; border: 1.5px solid #FAC775; }
+    .cab { background: #FFFBF0; color: #633806; border: 2px solid #EF9F27; font-weight: 600; }
+
+    input.c { padding: 0; outline: none; font-family: inherit; cursor: text; -moz-appearance: textfield; }
+    input.c::-webkit-inner-spin-button, input.c::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    .sym { font-size: 13px; color: #64748b; text-align: center; }
+    .eq  { font-size: 13px; color: #64748b; text-align: center; }
+    .unit { font-size: 11px; color: #94a3b8; padding-left: 8px; }
+
+    /* ── Grilla paso 1: 5 columnas fijas ── */
+    .grid1 {
+      display: grid;
+      grid-template-columns: 64px 40px 64px 28px 64px;
+      align-items: center;
+      row-gap: 8px;
+    }
+    .grid1 .sym { justify-self: center; }
+    .grid1 .eq  { justify-self: center; }
+    .grid1 .divtxt {
+      grid-column: span 3;
+      font-size: 13px; color: #64748b;
+      text-align: center;
+    }
+
+    /* ── Grilla paso 2 y 3 ── */
+    .grid2 {
+      display: grid;
+      grid-template-columns: 64px 40px 64px 28px 64px auto;
+      align-items: center;
+      height: 32px;
+    }
+    .grid2 .sym { justify-self: center; }
+    .grid2 .eq  { justify-self: center; }
+    .grid2 .unit { padding-left: 8px; }
+
+    /* ── Bloques ── */
+    .proc-block { background: #f8fafc; border: 0.5px solid #e2e8f0; border-radius: 8px; padding: 14px 20px; margin-bottom: 10px; }
+    .proc-title { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
+    .proc-cols { display: flex; justify-content: center; gap: 32px; }
+    .proc-col { display: flex; flex-direction: column; }
+    .proc-col-title { font-size: 11px; font-weight: 500; color: #94a3b8; text-align: center; padding-bottom: 7px; margin-bottom: 6px; border-bottom: 0.5px solid #e2e8f0; }
+
+    .op-block { border: 0.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+    .op-header { display: flex; align-items: stretch; }
+    .op-tag { background: #f8fafc; padding: 0 16px; font-size: 13px; font-weight: 600; color: #1a202c; display: flex; align-items: center; justify-content: center; border-right: 0.5px solid #e2e8f0; min-width: 64px; flex-shrink: 0; }
+    .op-inner { flex: 1; padding: 12px 16px; }
+    .op-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+
+    /* ── Resumen ── */
+    .summary { border: 0.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px; }
+    .sum-row { display: flex; align-items: center; padding: 12px 18px; }
+    .sum-row:not(:last-child) { border-bottom: 0.5px solid #e2e8f0; }
+    .sum-code { font-size: 14px; font-weight: 700; color: #1a202c; min-width: 60px; }
+    .sum-sep  { width: 0.5px; background: #e2e8f0; height: 20px; margin: 0 16px; flex-shrink: 0; }
+    .sum-desc { font-size: 13px; color: #64748b; flex: 1; }
+    .sum-eq   { font-size: 13px; color: #94a3b8; margin-right: 12px; }
+    .sum-val  { width: 64px; height: 32px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; border-radius: 5px; }
+    .sum-val.hd   { background: #FFFBF0; color: #854F0B; border: 1.5px solid #FAC775; }
+    .sum-val.hsem { background: #FFFBF0; color: #633806; border: 2px solid #EF9F27; }
+
+    @media (max-width: 600px) {
+      .sidebar { display: none; }
+      .content { padding: 16px; }
+      .proc-cols { flex-direction: column; gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-title">Calculadoras</div>
+      <div class="sidebar-brand-sub">Gestión de horarios</div>
+    </div>
+    <div class="sidebar-section">Cálculos</div>
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="2" width="14" height="12" rx="2" stroke="white" stroke-width="1.2"/>
+        <path d="M5 6h6M5 9h4" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M1 5h14" stroke="white" stroke-width="1.2"/>
+      </svg>
+      <span class="nav-label">Cálculo HD - HSEM</span>
+    </a>
+    <a class="nav-item coming" href="#">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="2" width="14" height="12" rx="2" stroke="#475569" stroke-width="1.2"/>
+        <path d="M5 6h6M5 9h4" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M1 5h14" stroke="#475569" stroke-width="1.2"/>
+      </svg>
+      <span class="nav-label">Próxima calculadora</span>
+      <span class="nav-badge">pronto</span>
+    </a>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Cálculo HD - HSEM</div>
+      <div class="topbar-sub">Horas diarias y semanales por horario</div>
+    </div>
+
+    <div class="content">
+      <div class="calc-card">
+        <div class="calc-main-title">Determinar horas diarias y semanales para cada horario</div>
+
+        <!-- Inputs hora -->
+        <div class="inputs-row">
+          <div class="time-block">
+            <div class="time-label">Hora inicio</div>
+            <div class="time-inputs">
+              <div class="time-box"><span class="box-label">H</span><input class="box-val" type="number" id="h1" min="0" max="23" value="15"></div>
+              <span class="colon">:</span>
+              <div class="time-box"><span class="box-label">MIN</span><input class="box-val" type="number" id="m1" min="0" max="59" value="34"></div>
+            </div>
+          </div>
+          <span class="arrow-sep">→</span>
+          <div class="time-block">
+            <div class="time-label">Hora término</div>
+            <div class="time-inputs">
+              <div class="time-box"><span class="box-label">H</span><input class="box-val" type="number" id="h2" min="0" max="23" value="23"></div>
+              <span class="colon">:</span>
+              <div class="time-box"><span class="box-label">MIN</span><input class="box-val" type="number" id="m2" min="0" max="59" value="7"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paso 1 -->
+        <div class="proc-block">
+          <div class="proc-title">Paso 1 — Convertir minutos a decimal</div>
+          <div class="proc-cols">
+            <div class="proc-col">
+              <div class="proc-col-title">Hora inicio</div>
+              <div class="grid1">
+                <span class="c cy" id="s-m1">34</span>
+                <span class="divtxt">÷ 60 =</span>
+                <span class="c cb" id="s-m1d">0,57</span>
+                <span class="c cy" id="s-h1">15</span>
+                <span class="sym">+</span>
+                <span class="c cb" id="s-m1d2">0,57</span>
+                <span class="eq">=</span>
+                <span class="c cb" id="s-d1">15,57</span>
+              </div>
+            </div>
+            <div class="proc-col">
+              <div class="proc-col-title">Hora término</div>
+              <div class="grid1">
+                <span class="c cy" id="s-m2">7</span>
+                <span class="divtxt">÷ 60 =</span>
+                <span class="c cg" id="s-m2d">0,12</span>
+                <span class="c cy" id="s-h2">23</span>
+                <span class="sym">+</span>
+                <span class="c cg" id="s-m2d2">0,12</span>
+                <span class="eq">=</span>
+                <span class="c cg" id="s-d2">23,12</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paso 2: HDIA -->
+        <div class="op-block">
+          <div class="op-header">
+            <div class="op-tag">HDIA</div>
+            <div class="op-inner">
+              <div class="op-label">Paso 2 — Se resta (término − inicio)</div>
+              <div class="grid2">
+                <span class="c cg" id="r-d2">23,12</span>
+                <span class="sym">−</span>
+                <span class="c cb" id="r-d1">15,57</span>
+                <span class="eq">=</span>
+                <span class="c ca" id="r-hdia">7,55</span>
+                <span class="unit">h / día</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paso 3: HSEM -->
+        <div class="op-block">
+          <div class="op-header">
+            <div class="op-tag">HSEM</div>
+            <div class="op-inner">
+              <div class="op-label">Paso 3 — Se multiplica (HD × días/semana)</div>
+              <div class="grid2">
+                <span class="c ca" id="r-hdia2">7,55</span>
+                <span class="sym">×</span>
+                <input class="c cb" type="number" id="dias" min="1" max="7" value="5">
+                <span class="eq">=</span>
+                <span class="c cab" id="r-hsem">37,75</span>
+                <span class="unit">h / sem</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="summary">
+          <div class="sum-row">
+            <span class="sum-code">HD</span>
+            <div class="sum-sep"></div>
+            <span class="sum-desc">Horas día</span>
+            <span class="sum-eq">=</span>
+            <span class="sum-val hd" id="res-hd">7,55</span>
+          </div>
+          <div class="sum-row">
+            <span class="sum-code">HSEM</span>
+            <div class="sum-sep"></div>
+            <span class="sum-desc">Horas semanales</span>
+            <span class="sum-eq">=</span>
+            <span class="sum-val hsem" id="res-hsem">37,75</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  function fmt(n) { return n.toFixed(2).replace('.', ','); }
+  function calc() {
+    const h1   = parseInt(document.getElementById('h1').value)   || 0;
+    const m1   = parseInt(document.getElementById('m1').value)   || 0;
+    const h2   = parseInt(document.getElementById('h2').value)   || 0;
+    const m2   = parseInt(document.getElementById('m2').value)   || 0;
+    const dias = parseInt(document.getElementById('dias').value) || 5;
+    const frac1 = m1/60, frac2 = m2/60;
+    const d1 = h1+frac1, d2 = h2+frac2;
+    let diff = d2-d1; if(diff<0) diff+=24;
+    const hsem = diff*dias;
+    document.getElementById('s-m1').textContent    = m1;
+    document.getElementById('s-h1').textContent    = h1;
+    document.getElementById('s-m1d').textContent   = fmt(frac1);
+    document.getElementById('s-m1d2').textContent  = fmt(frac1);
+    document.getElementById('s-d1').textContent    = fmt(d1);
+    document.getElementById('s-m2').textContent    = m2;
+    document.getElementById('s-h2').textContent    = h2;
+    document.getElementById('s-m2d').textContent   = fmt(frac2);
+    document.getElementById('s-m2d2').textContent  = fmt(frac2);
+    document.getElementById('s-d2').textContent    = fmt(d2);
+    document.getElementById('r-d1').textContent    = fmt(d1);
+    document.getElementById('r-d2').textContent    = fmt(d2);
+    document.getElementById('r-hdia').textContent  = fmt(diff);
+    document.getElementById('r-hdia2').textContent = fmt(diff);
+    document.getElementById('r-hsem').textContent  = fmt(hsem);
+    document.getElementById('res-hd').textContent  = fmt(diff);
+    document.getElementById('res-hsem').textContent = fmt(hsem);
+  }
+  ['h1','m1','h2','m2','dias'].forEach(id => document.getElementById(id).addEventListener('input', calc));
+  calc();
+</script>
+</body>
+</html>
